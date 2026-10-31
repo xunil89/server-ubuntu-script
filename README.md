@@ -8,7 +8,7 @@ Aggiorna automaticamente un sistema Ubuntu o Debian a un orario prestabilito e, 
 ## 📦 Installazione
 
 ```bash
-curl -fsSL \
+sudo curl -fsSL \
   https://raw.githubusercontent.com/xunil89/server-ubuntu-script/install-update-shutdown/install-update-shutdown.sh \
   -o /usr/local/bin/install-update-shutdown.sh
 
