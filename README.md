@@ -1,79 +1,85 @@
 # install-update-shutdown
 
-Aggiorna automaticamente il sistema (Ubuntu/Debian) a un orario fisso e,
-a scelta, lo spegne o lo riavvia. Supporta notifiche **ntfy** e **email**,
-con **QR code** per l'iscrizione al topic e **auto-update** dallo stesso
-repository GitHub.
+Aggiorna automaticamente un sistema Ubuntu o Debian a un orario prestabilito e, a scelta, lo spegne o lo riavvia. Supporta notifiche tramite **ntfy** e **email**, mostra un **QR code** per iscriversi al topic ntfy e può aggiornarsi dal repository GitHub.
 
-> Richiede: `bash`, `cron`, `curl`. Comandi verificati sulle man page
-> ufficiali di systemd (`shutdown`) e sulla GitHub REST API.
+> [!NOTE]
+> Richiede `bash`, `cron` e `curl`. I comandi sono verificati con le man page ufficiali di `systemd` (`shutdown`) e con la GitHub REST API.
 
-## Installazione (via curl)
+## 📦 Installazione
 
-    curl -fsSL \
-      https://raw.githubusercontent.com/xunil89/server-ubuntu-script/install-update-shutdown/install-update-shutdown.sh \
-      -o /usr/local/bin/install-update-shutdown.sh
-    sudo chmod +x /usr/local/bin/install-update-shutdown.sh
-    sudo install-update-shutdown.sh install
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/xunil89/server-ubuntu-script/install-update-shutdown/install-update-shutdown.sh \
+  -o /usr/local/bin/install-update-shutdown.sh
 
-## Comandi
+sudo chmod +x /usr/local/bin/install-update-shutdown.sh
+sudo install-update-shutdown.sh install
+```
+
+## 🛠️ Comandi
 
 | Comando | Descrizione |
 |---|---|
-| `install` | Configura e installa runner + cron (interattivo) |
-| `uninstall` | Rimuove job cron, runner e config |
-| `write-uninstaller` | Crea lo script di disinstallazione autonomo |
+| `install` | Configura e installa runner e cron in modalità interattiva |
+| `uninstall` | Rimuove il job cron, il runner e la configurazione |
+| `write-uninstaller` | Crea uno script di disinstallazione autonomo |
 | `update` | Aggiorna lo script dal repository GitHub |
-| `check-update` | Verifica se esiste una versione piu' recente |
-| `status` | Mostra lo stato dell'installazione |
+| `check-update` | Verifica se è disponibile una versione più recente |
+| `status` | Mostra lo stato dell’installazione |
 | `version` | Mostra la versione installata |
-| `help` | Mostra l'aiuto |
+| `help` | Mostra l’aiuto |
 
-Esempi:
+### Esempi
 
-    sudo install-update-shutdown.sh install
-    sudo install-update-shutdown.sh check-update
-    sudo install-update-shutdown.sh update
-    sudo install-update-shutdown.sh status
+```bash
+sudo install-update-shutdown.sh install
+sudo install-update-shutdown.sh check-update
+sudo install-update-shutdown.sh update
+sudo install-update-shutdown.sh status
+```
 
-## Cosa fa
+## ⚙️ Funzionamento
 
-1. Richiede: notifiche (ntfy default/privato con topic random, e/o email),
-   azione post-aggiornamento (nessuna / spegnimento / riavvio) e orario.
-2. Genera `/usr/local/bin/update-and-shutdown.sh` (runner) che:
-   - esegue `apt update` + `apt upgrade` con `DEBIAN_FRONTEND=noninteractive`
-   - verifica lo stato dei pacchetti con `dpkg --audit`
-   - **solo se tutto e' andato a buon fine** esegue l'azione scelta
-   - invia una notifica di esito
-3. Installa un job cron nell'orario scelto (default 02:00).
-4. Mostra un **QR code** con il topic ntfy (e l'indirizzo leggibile).
+1. Durante l’installazione, scegli:
+   - le notifiche: ntfy pubblico o privato con topic casuale, email o entrambi;
+   - l’azione da eseguire dopo l’aggiornamento: nessuna, spegnimento o riavvio;
+   - l’orario di esecuzione.
+2. Viene creato `/usr/local/bin/update-and-shutdown.sh`, il runner che:
+   - esegue `apt update` e `apt upgrade` con `DEBIAN_FRONTEND=noninteractive`;
+   - controlla lo stato dei pacchetti con `dpkg --audit`;
+   - esegue l’azione scelta **solo se l’aggiornamento è riuscito**;
+   - invia una notifica con l’esito.
+3. Viene installato un job cron all’orario scelto, che per impostazione predefinita è `02:00`.
+4. Se hai scelto ntfy, viene mostrato un **QR code** per iscriversi al topic, insieme all’indirizzo in formato leggibile.
 
-## File creati
+## 📁 File creati
 
 | Percorso | Ruolo |
 |---|---|
-| `/usr/local/bin/install-update-shutdown.sh` | Lo script principale |
-| `/usr/local/bin/update-and-shutdown.sh` | Runner eseguito dal cron |
-| `/etc/update-shutdown.conf` | Configurazione (`chmod 600`) |
-| `/usr/local/bin/uninstall-update-shutdown.sh` | Disinstaller (se generato) |
+| `/usr/local/bin/install-update-shutdown.sh` | Script principale |
+| `/usr/local/bin/update-and-shutdown.sh` | Runner eseguito da cron |
+| `/etc/update-shutdown.conf` | File di configurazione, con permessi `600` |
+| `/usr/local/bin/uninstall-update-shutdown.sh` | Disinstaller autonomo, se generato |
 
-## Auto-update
+## 🔄 Aggiornamento dello script
 
-La versione e' dichiarata nella variabile `SCRIPT_VERSION` in testa allo
-script. `check-update` scarica il file raw dal branch e confronta le
-versioni (semver `MAJOR.MINOR.PATCH`). `update` scarica e sostituisce
-lo script in `/usr/local/bin` solo se la versione remota e' piu' alta.
+La versione è dichiarata nella variabile `SCRIPT_VERSION`, all’inizio dello script.
 
-## Disinstallazione
+Il comando `check-update` scarica la versione presente nel branch GitHub e la confronta con quella installata usando il formato semver `MAJOR.MINOR.PATCH`. Il comando `update` scarica e sostituisce lo script in `/usr/local/bin` solo se la versione remota è più recente.
 
-    sudo install-update-shutdown.sh uninstall
-    # oppure, se hai generato il disinstaller autonomo:
-    sudo uninstall-update-shutdown.sh
+## 🗑️ Disinstallazione
 
-## Note di sicurezza
+```bash
+sudo install-update-shutdown.sh uninstall
+```
 
-- Il topic ntfy e' casuale: nessuno puo' pubblicare/leggere senza
-  conoscerlo. Rilanciando `install` viene generato un nuovo topic:
-  iscriviti di nuovo con il QR.
-- Il runner usa percorsi assoluti e `PATH` esplicito per funzionare
-  correttamente nell'ambiente minimo di cron.
+In alternativa, se hai generato il disinstaller autonomo:
+
+```bash
+sudo uninstall-update-shutdown.sh
+```
+
+## 🔒 Note di sicurezza
+
+- Il topic ntfy è casuale: per leggere o pubblicare notifiche è necessario conoscerlo. Se esegui di nuovo `install`, viene generato un nuovo topic: iscriviti nuovamente usando il QR code.
+- Il runner usa percorsi assoluti e un `PATH` esplicito, così da funzionare correttamente nell’ambiente ridotto di cron.
