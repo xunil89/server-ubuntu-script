@@ -1,85 +1,100 @@
 # install-update-shutdown
 
-Aggiorna automaticamente un sistema Ubuntu o Debian a un orario prestabilito e, a scelta, lo spegne o lo riavvia. Supporta notifiche tramite **ntfy** e **email**, mostra un **QR code** per iscriversi al topic ntfy e può aggiornarsi dal repository GitHub.
+Aggiorna automaticamente il sistema (Ubuntu/Debian) a un intervallo scelto e,
+a scelta, lo spegne o lo riavvia **solo se l'aggiornamento e' riuscito**.
+Notifiche **ntfy** e **email** con **dedup** (solo a stato cambiato), QR code per il topic e **auto-update** dal repository GitHub.
 
-> [!NOTE]
-> Richiede `bash`, `cron` e `curl`. I comandi sono verificati con le man page ufficiali di `systemd` (`shutdown`) e con la GitHub REST API.
+> Richiede: `bash`, `cron`, `curl`. Comandi verificati sulle man page
+> ufficiali di systemd (`shutdown`) e sulla GitHub REST API.
 
-## 📦 Installazione
+## 📦 Installazione (via curl)
 
-```bash
-sudo curl -fsSL \
-  https://raw.githubusercontent.com/xunil89/server-ubuntu-script/install-update-shutdown/install-update-shutdown.sh \
-  -o /usr/local/bin/install-update-shutdown.sh
-
-sudo chmod +x /usr/local/bin/install-update-shutdown.sh
-sudo install-update-shutdown.sh install
-```
+    curl -fsSL \
+      https://raw.githubusercontent.com/xunil89/server-ubuntu-script/install-update-shutdown/install-update-shutdown.sh \
+      -o /usr/local/bin/install-update-shutdown.sh
+    sudo chmod +x /usr/local/bin/install-update-shutdown.sh
+    sudo install-update-shutdown.sh install
 
 ## 🛠️ Comandi
 
 | Comando | Descrizione |
 |---|---|
-| `install` | Configura e installa runner e cron in modalità interattiva |
-| `uninstall` | Rimuove il job cron, il runner e la configurazione |
-| `write-uninstaller` | Crea uno script di disinstallazione autonomo |
+| `install` | Configura e installa (interattivo) |
+| `settings` | Modifica la configurazione dopo l'installazione |
+| `uninstall` | Rimuove cron, script, config e stato |
 | `update` | Aggiorna lo script dal repository GitHub |
-| `check-update` | Verifica se è disponibile una versione più recente |
-| `status` | Mostra lo stato dell’installazione |
+| `check-update` | Verifica se esiste una versione piu' recente |
+| `status` | Mostra lo stato dell'installazione |
 | `version` | Mostra la versione installata |
-| `help` | Mostra l’aiuto |
+| `help` | Mostra l'aiuto |
 
-### Esempi
+## Architettura (script separati)
 
-```bash
-sudo install-update-shutdown.sh install
-sudo install-update-shutdown.sh check-update
-sudo install-update-shutdown.sh update
-sudo install-update-shutdown.sh status
-```
+Il job cron esegue un wrapper che separa le due fasi:
 
-## ⚙️ Funzionamento
+    update-then-power.sh  =  update-check.sh && power-action.sh
 
-1. Durante l’installazione, scegli:
-   - le notifiche: ntfy pubblico o privato con topic casuale, email o entrambi;
-   - l’azione da eseguire dopo l’aggiornamento: nessuna, spegnimento o riavvio;
-   - l’orario di esecuzione.
-2. Viene creato `/usr/local/bin/update-and-shutdown.sh`, il runner che:
-   - esegue `apt update` e `apt upgrade` con `DEBIAN_FRONTEND=noninteractive`;
-   - controlla lo stato dei pacchetti con `dpkg --audit`;
-   - esegue l’azione scelta **solo se l’aggiornamento è riuscito**;
-   - invia una notifica con l’esito.
-3. Viene installato un job cron all’orario scelto, che per impostazione predefinita è `02:00`.
-4. Se hai scelto ntfy, viene mostrato un **QR code** per iscriversi al topic, insieme all’indirizzo in formato leggibile.
+- **`update-check.sh`**: controlla la disponibilita aggiornamenti a ogni run,
+  esegue `apt update` + `apt upgrade`, verifica `dpkg --audit`, e notifica
+  l'esito (successo o errore con exit code + ultime righe di output).
+  Esce **0** solo se tutto e' andato bene.
+- **`power-action.sh`**: esegue l'azione (spegnimento/riavvio) **solo se**
+  l'aggiornamento e' uscito senza errori (grazie a `&&`).
+- Se l'aggiornamento fallisce, il `&&` blocca l'azione: il server **non** si
+  spegne ne' riavvia.
+
+## Intervallo di controllo
+
+Durante l'installazione viene chiesto **ogni quanti minuti** verificare gli
+aggiornamenti (es. 60 = ogni ora, 240 = ogni 4 ore, 1440 = ogni giorno).
+L'orario di esecuzione (HH:MM) determina il primo scatto del cron.
 
 ## 📁 File creati
 
+- **Dedup**: per impostazione predefinita una notifica viene inviata solo se
+  lo **stato e cambiato** rispetto all'ultima (es. da "nessun aggiornamento" a
+  "aggiornamenti disponibili"). Lo stato e salvato in `/var/lib/update-shutdown/state`.
+- **Priorita ridotta**: default `Priority: 3` (normale), configurabile 1-5.
+- **Errori**: se `apt update`/`apt upgrade` falliscono o `dpkg --audit` segnala
+  pacchetti inconsistenti, la notifica include exit code e ultime righe di output.
+
+## File creati
+
 | Percorso | Ruolo |
 |---|---|
-| `/usr/local/bin/install-update-shutdown.sh` | Script principale |
-| `/usr/local/bin/update-and-shutdown.sh` | Runner eseguito da cron |
-| `/etc/update-shutdown.conf` | File di configurazione, con permessi `600` |
-| `/usr/local/bin/uninstall-update-shutdown.sh` | Disinstaller autonomo, se generato |
+| `/usr/local/bin/install-update-shutdown.sh` | Script principale (CLI) |
+| `/usr/local/bin/update-check.sh` | Controlla + aggiorna + notifica |
+| `/usr/local/bin/power-action.sh` | Spegnimento/riavvio |
+| `/usr/local/bin/update-then-power.sh` | Wrapper: power solo se update riuscito |
+| `/etc/update-shutdown.conf` | Configurazione (`chmod 600`) |
+| `/var/lib/update-shutdown/state` | Stato per il dedup delle notifiche |
 
-## 🔄 Aggiornamento dello script
+## Auto-update
 
-La versione è dichiarata nella variabile `SCRIPT_VERSION`, all’inizio dello script.
+La versione e in `SCRIPT_VERSION`. `check-update` confronta la versione locale
+con quella del file raw sul branch (semver `MAJOR.MINOR.PATCH`); `update`
+scarica e sostituisce lo script solo se la remota e piu' alta.
 
-Il comando `check-update` scarica la versione presente nel branch GitHub e la confronta con quella installata usando il formato semver `MAJOR.MINOR.PATCH`. Il comando `update` scarica e sostituisce lo script in `/usr/local/bin` solo se la versione remota è più recente.
+## Disinstallazione
 
-## 🗑️ Disinstallazione
+    sudo install-update-shutdown.sh uninstall
+    # oppure lo script autonomo:
+    sudo uninstall-update-shutdown.sh
 
-```bash
-sudo install-update-shutdown.sh uninstall
-```
+## Note di sicurezza
 
-In alternativa, se hai generato il disinstaller autonomo:
+- Il topic ntfy e casuale: nessuno puo' pubblicare/leggere senza conoscerlo.
+  Rilanciando `install` viene generato un nuovo topic: iscriviti di nuovo col QR.
+- Lo spegnimento (`shutdown -h now`) NON riaccende il server: servono WoL o
+  riaccensione programmata BIOS/UEFI.
+- Gli script runtime usano `PATH` esplicito e percorsi assoluti per funzionare
+  nell'ambiente minimo di cron.
 
-```bash
-sudo uninstall-update-shutdown.sh
-```
+## Versioni
 
-## 🔒 Note di sicurezza
-
-- Il topic ntfy è casuale: per leggere o pubblicare notifiche è necessario conoscerlo. Se esegui di nuovo `install`, viene generato un nuovo topic: iscriviti nuovamente usando il QR code.
-- Il runner usa percorsi assoluti e un `PATH` esplicito, così da funzionare correttamente nell’ambiente ridotto di cron.
+- **2.0.0** — Separazione update / azione (power solo se update riuscito),
+  intervallo di controllo configurabile, dedup notifiche, priorita ridotta,
+  comando `settings`, un solo `uninstall` completo. Fix `unbound variable`
+  inizializzando le variabili opzionali.
+- **1.1.0** — Reporting errori nel runner.
+- **1.0.0** — Prima versione con CLI e auto-update.
