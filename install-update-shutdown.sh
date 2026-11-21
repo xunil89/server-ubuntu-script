@@ -13,7 +13,7 @@ set -euo pipefail
 
 # --- METADATI (aggiorna SCRIPT_VERSION a ogni rilascio) ---
 SCRIPT_NAME="install-update-shutdown.sh"
-SCRIPT_VERSION="2.0.1"
+SCRIPT_VERSION="2.0.2"
 SCRIPT_REPO_OWNER="xunil89"
 SCRIPT_REPO_NAME="server-ubuntu-script"
 SCRIPT_BRANCH="install-update-shutdown"
@@ -312,8 +312,8 @@ build_cron() {
 }
 
 install_cron() {
-    local job="\$1"
-    ( crontab -l 2>/dev/null | grep -v "update-then-power" ; echo "$job" ) | crontab -
+    local job="$1"
+    ( crontab -l 2>/dev/null | grep -v "update-then-power" | sed '/^$/d' ; echo "$job" ) | crontab -
     if crontab -l | grep -q "update-then-power"; then
         echo "  -> Cron job scritto: ${job}"
     else
