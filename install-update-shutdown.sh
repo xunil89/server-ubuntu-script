@@ -13,7 +13,7 @@ set -euo pipefail
 
 # --- METADATI (aggiorna SCRIPT_VERSION a ogni rilascio) ---
 SCRIPT_NAME="install-update-shutdown.sh"
-SCRIPT_VERSION="2.0.0"
+SCRIPT_VERSION="2.0.1"
 SCRIPT_REPO_OWNER="xunil89"
 SCRIPT_REPO_NAME="server-ubuntu-script"
 SCRIPT_BRANCH="install-update-shutdown"
@@ -295,15 +295,19 @@ NOTIFY_DEDUP=${NOTIFY_DEDUP}
 NOTIFY_PRIORITY=${NOTIFY_PRIORITY}
 ACTION="${ACTION}"
 CHECK_MINUTES=${CHECK_MINUTES}
+RUN_TIME="${RUN_TIME}"
 EOF
     chmod 600 "$CONFIG_FILE"
 }
 
 build_cron() {
+    local rt="${RUN_TIME:-02:00}"
     local CRON_HOUR CRON_MIN
-    CRON_HOUR=$(echo "$RUN_TIME" | cut -d: -f1 | sed 's/^0//')
-    CRON_MIN=$(echo "$RUN_TIME" | cut -d: -f2 | sed 's/^0//')
-    CRON_MIN=${CRON_MIN:-0}
+    CRON_HOUR=$(echo "$rt" | cut -d: -f1)
+    CRON_MIN=$(echo "$rt" | cut -d: -f2)
+    # Normalizza: rimuove zeri iniziali ma mantiene almeno una cifra
+    CRON_HOUR=$((10#$CRON_HOUR))
+    CRON_MIN=$((10#$CRON_MIN))
     echo "${CRON_MIN} ${CRON_HOUR} * * * ${WRAPPER_SCRIPT}"
 }
 
