@@ -76,14 +76,14 @@ do_update() {
     remote=$(curl -fsSL --max-time 15 "$SCRIPT_RAW_URL" 2>/dev/null \
         | sed -n 's/^SCRIPT_VERSION="\{0,1\}\([^"]*\)"\{0,1\}/\1/p' | head -n1)
     [[ -z "$remote" ]] && { echo "ERRORE: download versione remota fallito." >&2; exit 1; }
-    if ! version_gt "$$remote" "$$SCRIPT_VERSION"; then
+    if ! version_gt "$remote" "$SCRIPT_VERSION"; then
         echo "Sei gia' aggiornato (v${SCRIPT_VERSION})."; exit 0
     fi
-    echo "Aggiorno v$${SCRIPT_VERSION} -> v$${remote}..."
+    echo "Aggiorno v${SCRIPT_VERSION} -> v${remote}..."
     local tmp; tmp=$(mktemp)
-    curl -fsSL --max-time 30 "$$SCRIPT_RAW_URL" -o "$$tmp" || { rm -f "$tmp"; exit 1; }
-    head -n1 "$$tmp" | grep -q '^#!' || { echo "ERRORE: file non valido." >&2; rm -f "$$tmp"; exit 1; }
-    mv "$$tmp" "$$SELF_PATH"; chmod 755 "$SELF_PATH"
+    curl -fsSL --max-time 30 "$SCRIPT_RAW_URL" -o "$tmp" || { rm -f "$tmp"; exit 1; }
+    head -n1 "$tmp" | grep -q '^#!' || { echo "ERRORE: file non valido." >&2; rm -f "$tmp"; exit 1; }
+    mv "$tmp" "$SELF_PATH"; chmod 755 "$SELF_PATH"
     echo "Aggiornato a v${remote}."
 }
 
@@ -104,20 +104,20 @@ notify() {
     # Dedup: notifica solo se la chiave di stato e' cambiata
     if [[ "$NOTIFY_DEDUP" == true ]]; then
         mkdir -p "$STATE_DIR" 2>/dev/null
-        if [[ -f "$$STATE_FILE" ]] && [[ "$$(cat "$$STATE_FILE" 2>/dev/null)" == "$$key" ]]; then
+        if [[ -f "$STATE_FILE" ]] && [[ "$(cat "$STATE_FILE" 2>/dev/null)" == "$key" ]]; then
             return 0
         fi
     fi
     if [[ "$USE_NTFY" == true ]]; then
         curl -s -o /dev/null -X POST \
-            -H "Title: $${subject}" -H "Priority: $${NOTIFY_PRIORITY}" \
-            -d "$$body" "$${NTFY_TOPIC}"
+            -H "Title: ${subject}" -H "Priority: ${NOTIFY_PRIORITY}" \
+            -d "$body" "${NTFY_TOPIC}"
     fi
     if [[ "$USE_EMAIL" == true ]]; then
-        printf '%s\n' "$$body" | mail -s "$${subject} - $${HOSTNAME}" "$${EMAIL}"
+        printf '%s\n' "$body" | mail -s "${subject} - ${HOSTNAME}" "${EMAIL}"
     fi
     if [[ "$NOTIFY_DEDUP" == true ]]; then
-        printf '%s' "$$key" > "$$STATE_FILE"
+        printf '%s' "$key" > "$STATE_FILE"
     fi
 }
 
@@ -132,30 +132,30 @@ fi
 
 # --- Aggiornamento (cattura exit code) ---
 set +e
-update_out=$$(apt update -y 2>&1); update_rc=$$?
-upgrade_out=$$(apt upgrade -y 2>&1); upgrade_rc=$$?
+update_out=$(apt update -y 2>&1); update_rc=$?
+upgrade_out=$(apt upgrade -y 2>&1); upgrade_rc=$?
 set -e
 
 if [[ $update_rc -ne 0 ]]; then
     notify "fail_update" "Aggiornamento fallito (apt update)" \
-        "apt update fallito su $${HOSTNAME} (exit $${update_rc}).\n\n$$(tail_text "$$update_out")"
+        "apt update fallito su ${HOSTNAME} (exit ${update_rc}).\n\n$(tail_text "$update_out")"
     exit 1
 fi
 if [[ $upgrade_rc -ne 0 ]]; then
     notify "fail_upgrade" "Aggiornamento fallito (apt upgrade)" \
-        "apt upgrade fallito su $${HOSTNAME} (exit $${upgrade_rc}).\n\n$$(tail_text "$$upgrade_out")"
+        "apt upgrade fallito su ${HOSTNAME} (exit ${upgrade_rc}).\n\n$(tail_text "$upgrade_out")"
     exit 1
 fi
 
 audit_out=$(dpkg --audit 2>&1)
 if [[ -n "$audit_out" ]]; then
     notify "fail_dpkg" "Aggiornamento incompleto (dpkg)" \
-        "Pacchetti inconsistenti su $${HOSTNAME}.\n\n$$(tail_text "$audit_out")"
+        "Pacchetti inconsistenti su ${HOSTNAME}.\n\n$(tail_text "$audit_out")"
     exit 1
 fi
 
 notify "updated_${COUNT}" "Aggiornamento completato" \
-    "$${COUNT} aggiornamenti installati su $${HOSTNAME}."
+    "${COUNT} aggiornamenti installati su ${HOSTNAME}."
 exit 0
 UPD
     chmod 700 "$UPDATE_SCRIPT"
@@ -171,11 +171,11 @@ notify() {
     local subject="\$1" body="\$2"
     if [[ "$USE_NTFY" == true ]]; then
         curl -s -o /dev/null -X POST \
-            -H "Title: $${subject}" -H "Priority: $${NOTIFY_PRIORITY}" \
-            -d "$$body" "$${NTFY_TOPIC}"
+            -H "Title: ${subject}" -H "Priority: ${NOTIFY_PRIORITY}" \
+            -d "$body" "${NTFY_TOPIC}"
     fi
     if [[ "$USE_EMAIL" == true ]]; then
-        printf '%s\n' "$$body" | mail -s "$${subject} - $${HOSTNAME}" "$${EMAIL}"
+        printf '%s\n' "$body" | mail -s "${subject} - ${HOSTNAME}" "${EMAIL}"
     fi
 }
 
@@ -218,7 +218,7 @@ collect_config() {
     echo ""
     local ans
     read -rp "Attivare notifiche ntfy? [S/n]: " ans
-    if [[ "$$ans" =~ ^[nN]$$ ]]; then
+    if [[ "$ans" =~ ^[nN]$ ]]; then
         USE_NTFY=false
     else
         USE_NTFY=true
@@ -240,13 +240,13 @@ collect_config() {
         else
             rand=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 16)
         fi
-        NTFY_TOPIC="$${NTFY_BASE_URL}/srv-$${rand}"
+        NTFY_TOPIC="${NTFY_BASE_URL}/srv-${rand}"
         echo "  -> ntfy configurato: ${NTFY_TOPIC}"
     fi
 
     echo ""
     read -rp "Attivare notifiche email? [s/N]: " ans
-    if [[ "$$ans" =~ ^[sS]$$ ]]; then
+    if [[ "$ans" =~ ^[sS]$ ]]; then
         USE_EMAIL=true
         read -rp "Indirizzo email di destinazione: " EMAIL
     else
@@ -256,7 +256,7 @@ collect_config() {
     echo ""
     echo "Notifiche: invia solo a stato cambiato (dedup)?"
     read -rp "Dedup notifiche? [S/n]: " ans
-    if [[ "$$ans" =~ ^[nN]$$ ]]; then NOTIFY_DEDUP=false; else NOTIFY_DEDUP=true; fi
+    if [[ "$ans" =~ ^[nN]$ ]]; then NOTIFY_DEDUP=false; else NOTIFY_DEDUP=true; fi
     read -rp "Priorita notifica ntfy (1=bassa..5=alta) [3]: " NOTIFY_PRIORITY
     NOTIFY_PRIORITY=${NOTIFY_PRIORITY:-3}
 
@@ -280,7 +280,7 @@ collect_config() {
     echo "  Esempi: 60 = ogni ora, 240 = ogni 4 ore, 1440 = ogni giorno"
     read -rp "Intervallo in minuti [240]: " CHECK_MINUTES
     CHECK_MINUTES=${CHECK_MINUTES:-240}
-    if ! [[ "$$CHECK_MINUTES" =~ ^[0-9]+$$ ]] || [[ "$CHECK_MINUTES" -lt 1 ]]; then
+    if ! [[ "$CHECK_MINUTES" =~ ^[0-9]+$ ]] || [[ "$CHECK_MINUTES" -lt 1 ]]; then
         echo "ERRORE: intervallo non valido." >&2; return 1
     fi
 }
@@ -301,10 +301,10 @@ EOF
 
 build_cron() {
     local CRON_HOUR CRON_MIN
-    CRON_HOUR=$$(echo "$$RUN_TIME" | cut -d: -f1 | sed 's/^0//')
-    CRON_MIN=$$(echo "$$RUN_TIME" | cut -d: -f2 | sed 's/^0//')
+    CRON_HOUR=$(echo "$RUN_TIME" | cut -d: -f1 | sed 's/^0//')
+    CRON_MIN=$(echo "$RUN_TIME" | cut -d: -f2 | sed 's/^0//')
     CRON_MIN=${CRON_MIN:-0}
-    echo "$${CRON_MIN} $${CRON_HOUR} * * * ${WRAPPER_SCRIPT}"
+    echo "${CRON_MIN} ${CRON_HOUR} * * * ${WRAPPER_SCRIPT}"
 }
 
 install_cron() {
@@ -341,7 +341,7 @@ do_install() {
     echo "    intervallo:  ogni ${CHECK_MINUTES} minuti"
     echo "=========================================="
     read -rp "Confermi? [S/n]: " CONFIRM
-    [[ "$$CONFIRM" =~ ^[nN]$$ ]] && { echo "Annullata."; exit 0; }
+    [[ "$CONFIRM" =~ ^[nN]$ ]] && { echo "Annullata."; exit 0; }
 
     echo ""
     echo "Installazione dipendenze..."
@@ -375,7 +375,7 @@ do_settings() {
 
 test_and_qr() {
     read -rp "Inviare notifica di TEST ora? [s/N]: " TEST
-    if [[ "$$TEST" =~ ^[sS]$$ ]]; then
+    if [[ "$TEST" =~ ^[sS]$ ]]; then
         source "$CONFIG_FILE"
         if [[ "$USE_NTFY" == true ]]; then
             curl -s -o /dev/null -X POST -H "Title: Test" -H "Priority: ${NOTIFY_PRIORITY}" \
@@ -397,31 +397,31 @@ do_uninstall() {
     require_root
     echo "Verra' rimosso: job cron, update-check.sh, power-action.sh, wrapper, config, stato."
     read -rp "Confermi la disinstallazione? [S/n]: " CONFIRM
-    [[ "$$CONFIRM" =~ ^[nN]$$ ]] && { echo "Annullata."; exit 0; }
+    [[ "$CONFIRM" =~ ^[nN]$ ]] && { echo "Annullata."; exit 0; }
 
     if crontab -l 2>/dev/null | grep -q "update-then-power"; then
         ( crontab -l 2>/dev/null | grep -v "update-then-power" ) | crontab -
         echo "  -> Job cron rimosso."
     fi
-    rm -f "$$UPDATE_SCRIPT" "$$POWER_SCRIPT" "$$WRAPPER_SCRIPT" "$$CONFIG_FILE"
+    rm -f "$UPDATE_SCRIPT" "$POWER_SCRIPT" "$WRAPPER_SCRIPT" "$CONFIG_FILE"
     rm -rf "$STATE_DIR"
     echo "  -> Script, config e stato rimossi."
     echo "Disinstallazione completata. (Lo script ${SELF_PATH} resta: eliminalo a mano se vuoi.)"
 }
 
 do_status() {
-    echo "Script:  $${SCRIPT_NAME} v$${SCRIPT_VERSION}"
-    echo "Update:  $$([[ -f "$$UPDATE_SCRIPT" ]] && echo presente || echo assente)"
-    echo "Power:   $$([[ -f "$$POWER_SCRIPT" ]] && echo presente || echo assente)"
-    echo "Wrapper: $$([[ -f "$$WRAPPER_SCRIPT" ]] && echo presente || echo assente)"
-    echo "Config:  $$([[ -f "$$CONFIG_FILE" ]] && echo presente || echo assente)"
+    echo "Script:  ${SCRIPT_NAME} v${SCRIPT_VERSION}"
+    echo "Update:  $([[ -f "$UPDATE_SCRIPT" ]] && echo presente || echo assente)"
+    echo "Power:   $([[ -f "$POWER_SCRIPT" ]] && echo presente || echo assente)"
+    echo "Wrapper: $([[ -f "$WRAPPER_SCRIPT" ]] && echo presente || echo assente)"
+    echo "Config:  $([[ -f "$CONFIG_FILE" ]] && echo presente || echo assente)"
     echo "Job cron:"
     crontab -l 2>/dev/null | grep "update-then-power" || echo "  (nessuno)"
 }
 
 usage() {
     cat << EOF
-$${SCRIPT_NAME} v$${SCRIPT_VERSION}
+${SCRIPT_NAME} v${SCRIPT_VERSION}
 Aggiornamento automatico con notifica e azione opzionale (solo se update riuscito).
 
 Uso: ${SCRIPT_NAME} <comando>
