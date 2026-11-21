@@ -49,16 +49,14 @@ Durante l'installazione viene chiesto **ogni quanti minuti** verificare gli
 aggiornamenti (es. 60 = ogni ora, 240 = ogni 4 ore, 1440 = ogni giorno).
 L'orario di esecuzione (HH:MM) determina il primo scatto del cron.
 
-## 📁 File creati
-
 - **Dedup**: per impostazione predefinita una notifica viene inviata solo se
   lo **stato e cambiato** rispetto all'ultima (es. da "nessun aggiornamento" a
   "aggiornamenti disponibili"). Lo stato e salvato in `/var/lib/update-shutdown/state`.
 - **Priorita ridotta**: default `Priority: 3` (normale), configurabile 1-5.
 - **Errori**: se `apt update`/`apt upgrade` falliscono o `dpkg --audit` segnala
   pacchetti inconsistenti, la notifica include exit code e ultime righe di output.
-
-## File creati
+  
+## 📁 File creati
 
 | Percorso | Ruolo |
 |---|---|
@@ -69,17 +67,30 @@ L'orario di esecuzione (HH:MM) determina il primo scatto del cron.
 | `/etc/update-shutdown.conf` | Configurazione (`chmod 600`) |
 | `/var/lib/update-shutdown/state` | Stato per il dedup delle notifiche |
 
-## Auto-update
+## 🔄 Auto-update
 
 La versione e in `SCRIPT_VERSION`. `check-update` confronta la versione locale
 con quella del file raw sul branch (semver `MAJOR.MINOR.PATCH`); `update`
 scarica e sostituisce lo script solo se la remota e piu' alta.
 
-## Disinstallazione
+## 🗑️ Disinstallazione
 
     sudo install-update-shutdown.sh uninstall
     # oppure lo script autonomo:
     sudo uninstall-update-shutdown.sh
+    
+### ⚠️⚠️ Attenzione a questi file "vecchi" (v1.x), orfani nella v2
+
+Se sei passato da 1.x a 2.x, questi possono essere rimasti e non vengono rimossi dal nuovo uninstall:
+
+    ls -l /usr/local/bin/update-and-shutdown.sh 2>/dev/null   # runner vecchio v1.x
+    ls -l /usr/local/bin/uninstall-update-shutdown.sh 2>/dev/null  # disinstaller vecchio
+
+Se esistono, eliminali a mano:
+
+    sudo rm -f /usr/local/bin/update-and-shutdown.sh
+    sudo rm -f /usr/local/bin/uninstall-update-shutdown.sh
+
 
 ## Note di sicurezza
 
